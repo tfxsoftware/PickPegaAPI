@@ -10,54 +10,53 @@ const auth = admin.auth();
 const app = express();
 
 app.use(bodyParser.json());
-
-
+// https://southamerica-east1-pick-pega.cloudfunctions.net/api >> HTTP PARA FAZER REQUISIÇÕES (SEGUIDO DA FUNÇÃO QUE QUER CHAMAR EX: /addNewRestaurante)
+//FUNÇÃO QUE ADICIONA NOVO RESTAURANTE E USUARIO AUTH PARA LOGIN:
 app.post('/addNewRestaurante', async (req: express.Request, res: express.Response) => {
   try {
-    const data = req.body;
-
-    const batch = db.batch();
-    const docRef = db.collection('Restaurantes').doc();
+    const data = req.body; //Body da requisição (objeto restaurante com atributos iguais ao do banco de dados tem que estar contidos nele)
+    const batch = db.batch(); //criamos um batch para realizar as duas funções a nível atomico (so funiciona se as duas derem certo)
+    const docRef = db.collection('Restaurantes').doc(); //isto cria um ID pro restaurante que vamos criar
 
     const { uid } = await auth.createUser({
       uid: docRef.id,
       email: data.email,
       password: data.senha,
       displayName: data.nome
-    });
+    }); // aqui criamos um auth user no firebase auth com os dados disponíveis no que foi passado pela requisição
 
     batch.set(docRef, {
       ...data,
       uid
     });
-    await batch.commit();
+    await batch.commit(); // aqui executamos as 2 ações: criamos o auth user e o restaurante no banco de dados
 
-    res.status(200).json({ "message": `Restaurante and Auth User created with ID: ${uid}` });
+    res.status(200).json({ "message": `Restaurante and Auth User created with ID: ${uid}` }); //log
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Falha ao registrar restaurante' });
+    res.status(500).json({ error: 'Falha ao registrar restaurante' });//log
   }
 });
 
-
+//FUNÇÃO QUE BUSCA OS DADOS DO RESTAURANTE PELO ID (É O MESMO ID DO AUTHUSER DELE)
 app.get('/getRestaurantById', async (req: express.Request, res: express.Response) => {
   try {
     
-    const restaurantId = req.query.id as string;
+    const restaurantId = req.query.id as string; //Pegamos o ID enviado pela requisição
 
     
-    const restaurantDoc = await db.collection('Restaurantes').doc(restaurantId).get();
+    const restaurantDoc = await db.collection('Restaurantes').doc(restaurantId).get(); //buscamos este id no banco de dados
 
     
     if (!restaurantDoc.exists) {
-      return res.status(404).json({ error: 'Restaurant not found' });
+      return res.status(404).json({ error: 'Restaurant not found' }); // se não existir retornaremos um erro!
     }
 
     
-    const restaurantData = restaurantDoc.data();
+    const restaurantData = restaurantDoc.data(); //caso existir pegamos os dados
 
     
-    return res.status(200).json(restaurantData);
+    return res.status(200).json(restaurantData); // aqui retornamos o dados da requisição!
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: 'An error occurred while fetching the restaurant' });
