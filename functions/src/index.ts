@@ -35,10 +35,13 @@ app.post('/addNewRestaurante', async (req: express.Request, res: express.Respons
     });
     await batch.commit(); // aqui executamos as 2 ações: criamos o auth user e o restaurante no banco de dados
 
-    res.status(200).json({ "message": `Restaurante e authuser criado com o id: ${uid}` }); //log
+    res.status(200).json({ status: 202,
+                           message: `Restaurante cadastrado`,
+                           payload: uid }); //log
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Falha ao registrar restaurante' });//log
+    res.status(500).json({ status: 500,
+                           error: 'Falha ao registrar restaurante'});//log
   }
 });
 
@@ -53,7 +56,8 @@ app.get('/getRestaurantById', async (req: express.Request, res: express.Response
 
     
     if (!restaurantDoc.exists) {
-      return res.status(404).json({ error: 'Restaurante não encontrado' }); // se não existir retornaremos um erro!
+      return res.status(404).json({ status: "404",
+                                error: 'Restaurante não encontrado' }); // se não existir retornaremos um erro!
     }
 
     
@@ -63,7 +67,8 @@ app.get('/getRestaurantById', async (req: express.Request, res: express.Response
     return res.status(200).json(restaurantData); // aqui retornamos o dados da requisição!
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: 'Um erro ocorreu!' });
+    return res.status(500).json({ status: 500,
+                                  error: 'ocorreu um erro no servidor! tente novamente mais tarde!' });
   }
 });
 //FUNÇÃO QUE DELETA RESTAURANTES
@@ -77,10 +82,10 @@ app.delete('/deleteRestaurante/:id', async (req: express.Request, res: express.R
     //deleta o authuser (conta de autenticação)
     await auth.deleteUser(restaurantId);
 
-    res.status(200).json({ message: 'Restaurante excluído com sucesso' });
+    res.status(200).json({ status: 200, message: 'Restaurante excluído com sucesso',payload: restaurantId });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Falha ao excluir restaurante' });
+    res.status(500).json({ status: 500, error: 'Falha ao excluir restaurante' });
   }
 });
 //FUNÇÃO QUE EDITA O RESTAURANTE
@@ -92,10 +97,10 @@ app.put('/editRestaurant/:id', async (req: express.Request, res: express.Respons
     // faz o update no firebase
     await db.collection('Restaurantes').doc(restaurantId).update(updatedData);
 
-    res.status(200).json({ message: 'Restaurante atualizado com sucesso' });
+    res.status(200).json({ status: 200, message: 'Restaurante atualizado com sucesso', payload: updatedData });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Falha ao atualizar restaurante' });
+    res.status(500).json({ status: 500, error: 'Falha ao atualizar restaurante' });
   }
 });
 
