@@ -13,7 +13,9 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors())
 //https://southamerica-east1-pick-pega.cloudfunctions.net/api >> HTTP PARA FAZER REQUISIÇÕES (SEGUIDO DA FUNÇÃO QUE QUER CHAMAR EX: /addNewRestaurante)
-
+//quando algum dado é resgatado como "parametro", 
+//siguinifica que este deve ser inserido na propria url, 
+//por exemplo: southamerica-east1-pick-pega.cloudfunctions.net/api/deleteRestaurante/idaserdeletado
 
 //FUNÇÃO QUE ADICIONA NOVO RESTAURANTE E USUARIO AUTH PARA LOGIN:
 app.post('/addNewRestaurante', async (req: express.Request, res: express.Response) => {
@@ -183,6 +185,75 @@ app.post('/addNewPedido', async (req: express.Request, res: express.Response) =>
     });
   }
 });
+
+// FUNÇÃO PARA CRIAR UM NOVO DOCUMENTO NA COLEÇÃO "Items"
+app.post('/addNewItem', async (req: express.Request, res: express.Response) => {
+  try {
+    const novoItem = req.body; // Dados do novo item no corpo da requisição
+
+    // Adicionar um novo documento à coleção "Items" com os dados fornecidos
+    const itemRef = await db.collection('Items').add(novoItem);
+
+    res.status(200).json({
+      status: 200,
+      message: 'Item criado com sucesso',
+      payload: { id: itemRef.id }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao criar um novo item'
+    });
+  }
+});
+
+// FUNÇÃO PARA DELETAR UM DOCUMENTO DA COLEÇÃO "Items" PELO ID
+app.delete('/deleteItem/:id', async (req: express.Request, res: express.Response) => {
+  try {
+    const itemId = req.params.id; // Obter o ID do item a ser excluído dos parâmetros da requisição
+
+    // Deletar o documento da coleção "Items" pelo ID
+    await db.collection('Items').doc(itemId).delete();
+
+    res.status(200).json({
+      status: 200,
+      message: 'Item excluído com sucesso',
+      payload: itemId
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao excluir o item'
+    });
+  }
+});
+
+// FUNÇÃO PARA EDITAR UM DOCUMENTO NA COLEÇÃO "Items" PELO ID
+app.put('/editItem/:id', async (req: express.Request, res: express.Response) => {
+  try {
+    const itemId = req.params.id; // Obter o ID do item a ser editado dos parâmetros da requisição
+    const updatedItem = req.body; // Dados atualizados do item no corpo da requisição
+
+    // Editar o documento na coleção "Items" pelo ID
+    await db.collection('Items').doc(itemId).update(updatedItem);
+
+    res.status(200).json({
+      status: 200,
+      message: 'Item atualizado com sucesso',
+      payload: updatedItem
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao atualizar o item'
+    });
+  }
+});
+
+
 
 
 
