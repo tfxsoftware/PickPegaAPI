@@ -104,6 +104,88 @@ app.put('/editRestaurant/:id', async (req: express.Request, res: express.Respons
   }
 });
 
+// Função para atualizar a senha do usuário de autenticação e a senha no banco de dados usando um batch
+app.put('/updatePassword/:id', async (req: express.Request, res: express.Response) => {
+  try {
+    const restaurantId = req.params.id; // Obter o ID do restaurante dos parâmetros da requisição
+    const { novaSenha } = req.body; // Obter a nova senha do corpo da requisição
+
+    const batch = db.batch(); // Criar um batch Firestore
+
+    // Atualizar a senha no documento Firestore
+    const restaurantRef = db.collection('Restaurantes').doc(restaurantId);
+    batch.update(restaurantRef, { senha: novaSenha });
+
+    // Obter o usuário de autenticação para atualizar a senha
+    await auth.getUser(restaurantId);
+
+    // Atualizar a senha do usuário de autenticação
+    await auth.updateUser(restaurantId, { password: novaSenha });
+
+    // Confirmar o batch para executar ambas as atualizações atomicamente
+    await batch.commit();
+
+    res.status(200).json({ status: 200, message: 'Senha atualizada com sucesso', payload: novaSenha });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ status: 500, error: 'Falha ao atualizar a senha' });
+  }
+});
+
+// FUNÇÃO PARA BUSCAR TODOS OS RESTAURANTES
+app.get('/getAllRestaurantes', async (req: express.Request, res: express.Response) => {
+  try {
+    // Consulta a coleção 'Restaurantes' no Firestore
+    const restaurantesSnapshot = await db.collection('Restaurantes').get();
+
+    const restaurantes: any[] = []; // Array para armazenar os restaurantes encontrados
+
+    // Itera sobre os documentos da coleção
+    restaurantesSnapshot.forEach((doc) => {
+      // Obtém os dados do restaurante
+      const restauranteData = doc.data();
+      restaurantes.push(restauranteData); // Adiciona o restaurante ao array
+    });
+
+    res.status(200).json({
+      status: 200,
+      message: 'Restaurantes encontrados com sucesso',
+      payload: restaurantes
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao buscar restaurantes'
+    });
+  }
+});
+
+
+// FUNÇÃO PARA CRIAR UM NOVO DOCUMENTO NA COLEÇÃO "pedidos" 
+app.post('/addNewPedido', async (req: express.Request, res: express.Response) => {
+  try {
+    const novoPedido = req.body; // Dados do novo pedido no corpo da requisição
+
+    // Adicionar um novo documento à coleção "pedidos" ( com os dados fornecidos
+    const pedidoRef = await db.collection('pedidos').add(novoPedido);
+
+    res.status(200).json({
+      status: 200,
+      message: 'Pedido cadastrado com sucesso',
+      payload: { id: pedidoRef.id }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao criar um novo pedido'
+    });
+  }
+});
+
+
+
 
 
 
