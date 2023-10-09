@@ -253,6 +253,46 @@ app.put('/editItem/:id', async (req: express.Request, res: express.Response) => 
   }
 });
 
+// FUNÇÃO PARA BUSCAR ITENS POR "restauranteid"
+app.get('/getItemsByRestauranteId/:restauranteid', async (req: express.Request, res: express.Response) => {
+  try {
+    const restauranteId = req.params.restauranteid; // Obter o ID do restaurante dos parâmetros da requisição
+
+    // Consulta a coleção "Items" no Firestore para encontrar itens com o "restauranteid" correspondente
+    const itemsSnapshot = await db.collection('Items').where('restauranteid', '==', restauranteId).get();
+
+    const items: any[] = []; // Array para armazenar os itens encontrados
+
+    // Verifica se pelo menos um documento foi encontrado
+    if (itemsSnapshot.empty) {
+      res.status(404).json({
+        status: 404,
+        error: 'Restaurante não encontrado ou não possue items!'
+      });
+      return;
+    }
+
+    // Itera sobre os documentos da coleção
+    itemsSnapshot.forEach((doc) => {
+      // Obtém os dados do item
+      const itemData = doc.data();
+      items.push(itemData); // Adiciona o item ao array
+    });
+
+    res.status(200).json({
+      status: 200,
+      message: 'Itens encontrados com sucesso',
+      payload: items
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao buscar itens'
+    });
+  }
+});
+
 
 
 
