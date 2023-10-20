@@ -17,35 +17,42 @@ app.use(cors())
 //siguinifica que este deve ser inserido na propria url, 
 //por exemplo: southamerica-east1-pick-pega.cloudfunctions.net/api/deleteRestaurante/idaserdeletado
 
-//FUNÇÃO QUE ADICIONA NOVO RESTAURANTE E USUARIO AUTH PARA LOGIN:
-app.post('/addNewRestaurante', async (req: express.Request, res: express.Response) => {
-  try {
-    const data = req.body; //Body da requisição (objeto restaurante com atributos iguais ao do banco de dados tem que estar contidos nele)
-    const batch = db.batch(); //criamos um batch para realizar as duas funções a nível atomico (so funiciona se as duas derem certo)
-    const docRef = db.collection('Restaurantes').doc(); //isto cria um ID pro restaurante que vamos criar
+  //FUNÇÃO QUE ADICIONA NOVO RESTAURANTE E USUARIO AUTH PARA LOGIN:
+  app.post('/addNewRestaurant', async (req: express.Request, res: express.Response) => {
+    try {
+      const data = req.body; //Body da requisição (objeto restaurante com atributos iguais ao do banco de dados tem que estar contidos nele)
+      const batch = db.batch(); //criamos um batch para realizar as duas funções a nível atomico (so funiciona se as duas derem certo)
+      const docRef = db.collection('Restaurant').doc(); //isto cria um ID pro restaurante que vamos criar
 
-    const { uid } = await auth.createUser({
-      uid: docRef.id,
-      email: data.email,
-      password: data.password,
-      displayName: data.name
-    }); // aqui criamos um auth user no firebase auth com os dados disponíveis no que foi passado pela requisição
+      const { uid } = await auth.createUser({
+        uid: docRef.id,
+        email: data.email,
+        password: data.password,
+        displayName: data.name
+      }); // aqui criamos um auth user no firebase auth com os dados disponíveis no que foi passado pela requisição
 
-    batch.set(docRef, {
-      ...data,
-      uid
+      batch.set(docRef, {
+        ...data,
+        uid
+      });
+      
+    // Cria um documento na coleção "menu" com o mesmo ID do restaurante
+    const menuDocRef = db.collection('Menu').doc(docRef.id);
+    batch.set(menuDocRef, {
+        new: true
     });
-    await batch.commit(); // aqui executamos as 2 ações: criamos o auth user e o restaurante no banco de dados
+      
+      await batch.commit(); // aqui executamos as 2 ações: criamos o auth user e o restaurante no banco de dados
 
-    res.status(200).json({ status: 202,
-                           message: `Restaurante cadastrado`,
-                           payload: uid }); //log
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ status: 500,
-                           error: 'Falha ao registrar restaurante'});//log
-  }
-});
+      res.status(200).json({ status: 202,
+                            message: `Restaurante cadastrado`,
+                            payload: uid }); //log
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: 500,
+                            error: 'Falha ao registrar restaurante'});//log
+    }
+  });
 
 //FUNÇÃO QUE BUSCA OS DADOS DO RESTAURANTE PELO ID (É O MESMO ID DO AUTHUSER DELE)
 app.get('/getRestaurantById', async (req: express.Request, res: express.Response) => {
@@ -54,7 +61,7 @@ app.get('/getRestaurantById', async (req: express.Request, res: express.Response
     const restaurantId = req.query.id as string; //Pegamos o ID enviado pela requisição
 
     
-    const restaurantDoc = await db.collection('Restaurantes').doc(restaurantId).get(); //buscamos este id no banco de dados
+    const restaurantDoc = await db.collection('Restaurant').doc(restaurantId).get(); //buscamos este id no banco de dados
 
     
     if (!restaurantDoc.exists) {
@@ -74,12 +81,12 @@ app.get('/getRestaurantById', async (req: express.Request, res: express.Response
   }
 });
 //FUNÇÃO QUE DELETA RESTAURANTES
-app.delete('/deleteRestaurante/:id', async (req: express.Request, res: express.Response) => {
+app.delete('/deleteRestaurant/:id', async (req: express.Request, res: express.Response) => {
   try {
     const restaurantId = req.params.id; // Puxa o id do restaurante por parametros de rota
 
     // Deleta o documento do firestore
-    await db.collection('Restaurantes').doc(restaurantId).delete();
+    await db.collection('Restaurant').doc(restaurantId).delete();
 
     //deleta o authuser (conta de autenticação)
     await auth.deleteUser(restaurantId);
@@ -97,7 +104,7 @@ app.put('/editRestaurant/:id', async (req: express.Request, res: express.Respons
     const updatedData = req.body; // aqui é o novo restaurante a ser trocado (LEMBRAR DE ENVIAR UM OBJETO QUE PREENCHE TODOS OS PARAMETROS MESMO QUE ELES NAO SERAO EDITADOS)
 
     // faz o update no firebase
-    await db.collection('Restaurantes').doc(restaurantId).update(updatedData);
+    await db.collection('Restaurant').doc(restaurantId).update(updatedData);
 
     res.status(200).json({ status: 200, message: 'Restaurante atualizado com sucesso', payload: updatedData });
   } catch (error) {
@@ -115,7 +122,7 @@ app.put('/updatePassword/:id', async (req: express.Request, res: express.Respons
     const batch = db.batch(); // Criar um batch Firestore
 
     // Atualizar a senha no documento Firestore
-    const restaurantRef = db.collection('Restaurantes').doc(restaurantId);
+    const restaurantRef = db.collection('Restaurant').doc(restaurantId);
     batch.update(restaurantRef, { password: novaSenha });
 
     // Obter o usuário de autenticação para atualizar a senha
@@ -135,10 +142,10 @@ app.put('/updatePassword/:id', async (req: express.Request, res: express.Respons
 });
 
 // FUNÇÃO PARA BUSCAR TODOS OS RESTAURANTES
-app.get('/getAllRestaurantes', async (req: express.Request, res: express.Response) => {
+app.get('/getAllRestaurants', async (req: express.Request, res: express.Response) => {
   try {
     // Consulta a coleção 'Restaurantes' no Firestore
-    const restaurantesSnapshot = await db.collection('Restaurantes').get();
+    const restaurantesSnapshot = await db.collection('Restaurant').get();
 
     const restaurantes: any[] = []; // Array para armazenar os restaurantes encontrados
 
@@ -165,12 +172,12 @@ app.get('/getAllRestaurantes', async (req: express.Request, res: express.Respons
 
 
 // FUNÇÃO PARA CRIAR UM NOVO DOCUMENTO NA COLEÇÃO "pedidos" 
-app.post('/addNewPedido', async (req: express.Request, res: express.Response) => {
+app.post('/addNewOrder', async (req: express.Request, res: express.Response) => {
   try {
     const novoPedido = req.body; // Dados do novo pedido no corpo da requisição
 
     // Adicionar um novo documento à coleção "pedidos" ( com os dados fornecidos
-    const pedidoRef = await db.collection('Pedidos').add(novoPedido);
+    const pedidoRef = await db.collection('Order').add(novoPedido);
 
     res.status(200).json({
       status: 200,
@@ -186,13 +193,14 @@ app.post('/addNewPedido', async (req: express.Request, res: express.Response) =>
   }
 });
 
-// FUNÇÃO PARA CRIAR UM NOVO DOCUMENTO NA COLEÇÃO "Items"
-app.post('/addNewItem', async (req: express.Request, res: express.Response) => {
+// FUNÇÃO PARA CRIAR UM NOVO ITEM NO MENU DO RESTAURANTE
+app.post('/addNewItem/:id', async (req: express.Request, res: express.Response) => {
   try {
     const novoItem = req.body; // Dados do novo item no corpo da requisição
+    const restaurant = req.params.id //ID DO RESTAURANTE
 
     // Adicionar um novo documento à coleção "Items" com os dados fornecidos
-    const itemRef = await db.collection('Items').add(novoItem);
+    const itemRef = await db.collection('Menu').doc(restaurant).collection(novoItem.category).add(novoItem);
 
     res.status(200).json({
       status: 200,
@@ -212,9 +220,10 @@ app.post('/addNewItem', async (req: express.Request, res: express.Response) => {
 app.delete('/deleteItem/:id', async (req: express.Request, res: express.Response) => {
   try {
     const itemId = req.params.id; // Obter o ID do item a ser excluído dos parâmetros da requisição
+    const itemInfo = req.body;
 
     // Deletar o documento da coleção "Items" pelo ID
-    await db.collection('Items').doc(itemId).delete();
+    await db.collection('Menu').doc(itemInfo.restaurant).collection(itemInfo.category).doc(itemId).delete();
 
     res.status(200).json({
       status: 200,
@@ -237,7 +246,7 @@ app.put('/editItem/:id', async (req: express.Request, res: express.Response) => 
     const updatedItem = req.body; // Dados atualizados do item no corpo da requisição
 
     // Editar o documento na coleção "Items" pelo ID
-    await db.collection('Items').doc(itemId).update(updatedItem);
+    await db.collection('Menu').doc(updatedItem.restaurantId).collection(updatedItem.category).doc(itemId).update(updatedItem);
 
     res.status(200).json({
       status: 200,
@@ -254,36 +263,24 @@ app.put('/editItem/:id', async (req: express.Request, res: express.Response) => 
 });
 
 // FUNÇÃO PARA BUSCAR ITENS POR "restauranteid" COM OS IDs DOS ITENS
-app.get('/getItemsByRestauranteId/:restauranteid', async (req: express.Request, res: express.Response) => {
+app.get('/getRestaurantMenu/:restaurantid', async (req: express.Request, res: express.Response) => {
   try {
-    const restauranteId = req.params.restauranteid; // Obter o ID do restaurante dos parâmetros da requisição
+    const restauranteId = req.params.restaurantid; // Obter o ID do restaurante dos parâmetros da requisição
 
-    // Consulta a coleção "Items" no Firestore para encontrar itens com o "restauranteid" correspondente
-    const itemsSnapshot = await db.collection('Items').where('restauranteid', '==', restauranteId).get();
-
-    const items: any[] = []; // Array para armazenar os itens encontrados
-
+    // Consulta a coleção "Menu" no Firestore para encontrar itens com o "restauranteid" correspondente
+    const menu = await db.collection('Menu').doc(restauranteId).get();
     // Verifica se pelo menos um documento foi encontrado
-    if (itemsSnapshot.empty) {
+    if (!menu) {
       res.status(404).json({
         status: 404,
         error: 'Restaurante não encontrado ou não possui itens!'
       });
       return;
     }
-
-    // Itera sobre os documentos da coleção
-    itemsSnapshot.forEach((doc) => {
-      // Obtém os dados do item
-      const itemData = doc.data();
-      const itemId = doc.id; // Obtém o ID do item
-      items.push({ id: itemId, ...itemData }); // Adiciona o item com o ID ao array
-    });
-
     res.status(200).json({
       status: 200,
       message: 'Itens encontrados com sucesso',
-      payload: items
+      payload: menu
     });
   } catch (error) {
     console.error(error);
@@ -293,12 +290,6 @@ app.get('/getItemsByRestauranteId/:restauranteid', async (req: express.Request, 
     });
   }
 });
-
-
-
-
-
-
 
 
 
