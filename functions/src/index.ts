@@ -12,6 +12,8 @@ const app = express();
 
 app.use(bodyParser.json());
 app.use(cors())
+
+import * as restaurantOperations from './restaurantOperations'
 //https://southamerica-east1-pick-pega.cloudfunctions.net/api >> HTTP PARA FAZER REQUISIÇÕES (SEGUIDO DA FUNÇÃO QUE QUER CHAMAR EX: /addNewRestaurante)
 //quando algum dado é resgatado como "parametro", 
 //siguinifica que este deve ser inserido na propria url, 
@@ -20,37 +22,17 @@ app.use(cors())
   //FUNÇÃO QUE ADICIONA NOVO RESTAURANTE E USUARIO AUTH PARA LOGIN:
   app.post('/addNewRestaurant', async (req: express.Request, res: express.Response) => {
     try {
-      const data = req.body; //Body da requisição (objeto restaurante com atributos iguais ao do banco de dados tem que estar contidos nele)
-      const batch = db.batch(); //criamos um batch para realizar as duas funções a nível atomico (so funiciona se as duas derem certo)
-      const docRef = db.collection('Restaurant').doc(); //isto cria um ID pro restaurante que vamos criar
-
-      const { uid } = await auth.createUser({
-        uid: docRef.id,
-        email: data.email,
-        password: data.password,
-        displayName: data.name
-      }); // aqui criamos um auth user no firebase auth com os dados disponíveis no que foi passado pela requisição
-
-      batch.set(docRef, {
-        ...data,
-        uid
-      });
-      
-    // Cria um documento na coleção "menu" com o mesmo ID do restaurante
-    const menuDocRef = db.collection('Menu').doc(docRef.id);
-    batch.set(menuDocRef, {
-        new: true
-    });
-      
-      await batch.commit(); // aqui executamos as 2 ações: criamos o auth user e o restaurante no banco de dados
-
+      const data = req.body;
+      const uid = await restaurantOperations.addRestaurant(db, auth, data);
       res.status(200).json({ status: 202,
-                            message: `Restaurante cadastrado`,
-                            payload: uid }); //log
+        message: `Restaurante cadastrado`,
+        payload: uid }); //log
     } catch (error) {
-      console.error(error);
+          
       res.status(500).json({ status: 500,
-                            error: 'Falha ao registrar restaurante'});//log
+        message: `Erro ao cadastrar restaurante`,
+        payload: error }); //log
+
     }
   });
 
