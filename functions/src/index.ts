@@ -6,6 +6,7 @@ import * as cors from 'cors';
 
 admin.initializeApp();
 
+
 const db = admin.firestore();
 const auth = admin.auth();
 const app = express();
@@ -17,6 +18,8 @@ app.use(cors())
 //siguinifica que este deve ser inserido na propria url, 
 //por exemplo: southamerica-east1-pick-pega.cloudfunctions.net/api/deleteRestaurante/idaserdeletado
 
+
+//------------------------------RESTAURANT OPERATIONS-------------------------------------------
   //FUNÇÃO QUE ADICIONA NOVO RESTAURANTE E USUARIO AUTH PARA LOGIN:
   app.post('/addNewRestaurant', async (req: express.Request, res: express.Response) => {
     try {
@@ -170,7 +173,7 @@ app.get('/getAllRestaurants', async (req: express.Request, res: express.Response
   }
 });
 
-
+//------------------------------------ORDER OPERATIONS--------------------------------------
 // FUNÇÃO PARA CRIAR UM NOVO DOCUMENTO NA COLEÇÃO "pedidos" 
 app.post('/addNewOrder', async (req: express.Request, res: express.Response) => {
   try {
@@ -192,7 +195,7 @@ app.post('/addNewOrder', async (req: express.Request, res: express.Response) => 
     });
   }
 });
-
+//-------------------------------------------MENU OPERATIONS----------------------------------------------
 // FUNÇÃO PARA CRIAR UM NOVO ITEM NO MENU DO RESTAURANTE
 app.post('/addNewItem/:id', async (req: express.Request, res: express.Response) => {
   try {
@@ -262,25 +265,51 @@ app.put('/editItem/:id', async (req: express.Request, res: express.Response) => 
   }
 });
 
+//interface para enviar subcoleções
+interface MenuData {
+  categories: Record<string, any[]>;
+}
 // FUNÇÃO PARA BUSCAR ITENS POR "restauranteid" COM OS IDs DOS ITENS
 app.get('/getRestaurantMenu/:restaurantid', async (req: express.Request, res: express.Response) => {
   try {
-    const restauranteId = req.params.restaurantid; // Obter o ID do restaurante dos parâmetros da requisição
+    const restaurantId = req.params.restaurantid; // obtendo o id da url
 
-    // Consulta a coleção "Menu" no Firestore para encontrar itens com o "restauranteid" correspondente
-    const menu = await db.collection('Menu').doc(restauranteId).get();
-    // Verifica se pelo menos um documento foi encontrado
-    if (!menu) {
+    // pega referencia do documento
+    const menuRef = db.collection('Menu').doc(restaurantId);
+
+    const menuData = (await menuRef.get()).data() as MenuData;
+
+    if (!menuData) {
       res.status(404).json({
         status: 404,
-        error: 'Restaurante não encontrado ou não possui itens!'
+        error: 'Menu não encontrado ou não possui itens!'
       });
       return;
     }
+
+    // inica um objeto para guardar os dados de cada categoria
+    const menuWithSubcollections: MenuData = {  
+      categories: {}
+    };
+
+    // pega subcolecoes do documento
+    const subcollections = await menuRef.listCollections();
+
+    // loopa as subcolections e pega os dados para cada uma delas
+    for (const subcollectionRef of subcollections) {
+      const subcollectionData: any[] = [];
+      const subcollectionQuery = await subcollectionRef.get();
+      subcollectionQuery.forEach((subDoc) => {
+        subcollectionData.push(subDoc.data());
+      });
+      // guarda cada categoria no seu devido nome
+      menuWithSubcollections.categories[subcollectionRef.id] = subcollectionData;
+    }
+
     res.status(200).json({
       status: 200,
-      message: 'Itens encontrados com sucesso',
-      payload: menu
+      message: 'Menu e categorias encontrados com sucesso',
+      payload: menuWithSubcollections
     });
   } catch (error) {
     console.error(error);
@@ -290,6 +319,7 @@ app.get('/getRestaurantMenu/:restaurantid', async (req: express.Request, res: ex
     });
   }
 });
+
 
 
 
