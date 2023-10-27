@@ -300,7 +300,9 @@ app.get('/getRestaurantMenu/:restaurantid', async (req: express.Request, res: ex
       const subcollectionData: any[] = [];
       const subcollectionQuery = await subcollectionRef.get();
       subcollectionQuery.forEach((subDoc) => {
-        subcollectionData.push(subDoc.data());
+        const itemData = subDoc.data();
+        itemData.itemId = subDoc.id; // Adiciona o ID
+        subcollectionData.push(itemData);
       });
       // guarda cada categoria no seu devido nome
       menuWithSubcollections.categories[subcollectionRef.id] = subcollectionData;
@@ -321,6 +323,36 @@ app.get('/getRestaurantMenu/:restaurantid', async (req: express.Request, res: ex
 });
 
 
+app.post('/createCategory:restaurantId', async (req: express.Request, res: express.Response) => {
+  try {
+    const restaurantId = req.params.restaurantId;
+    const { categoryName } = req.body;
+
+    // acha o menu do restaurant
+    const restaurantRef = db.collection('Restaurant').doc(restaurantId);
+
+    // Cria uma referencia da collection
+    const subcollectionRef = restaurantRef.collection(categoryName);
+
+    // adiciona um documento pq nao da pra criar vazia
+    subcollectionRef.add({ temp: 'data' });
+
+    // agora deleta o documento
+    subcollectionRef.get().then((querySnapshot) => {
+      querySnapshot.docs.forEach((doc) => {
+        doc.ref.delete();
+      });
+    });
+
+    res.status(200).json({ status: 200,
+      message: 'Categoria criada com sucesso!',
+      payload: categoryName });
+  } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ status: 500,
+          error: 'Erro no servidor!' });
+  }
+});
 
 
 exports.api = functions.region('southamerica-east1').https.onRequest(app);
