@@ -174,18 +174,19 @@ app.get('/getAllRestaurants', async (req: express.Request, res: express.Response
 });
 
 //------------------------------------ORDER OPERATIONS--------------------------------------
-// FUNÇÃO PARA CRIAR UM NOVO DOCUMENTO NA COLEÇÃO "pedidos" 
-app.post('/addNewOrder', async (req: express.Request, res: express.Response) => {
+// FUNÇÃO PARA CRIAR UM NOVO DOCUMENTO NA COLEÇÃO "order" 
+app.post('/addNewOrder/:id', async (req: express.Request, res: express.Response) => {
   try {
-    const novoPedido = req.body; // Dados do novo pedido no corpo da requisição
+    const novoItem = req.body; // Dados do novo item no corpo da requisição
+    const restaurant = req.params.id //ID DO RESTAURANTE
 
-    // Adicionar um novo documento à coleção "pedidos" ( com os dados fornecidos
-    const pedidoRef = await db.collection('Order').add(novoPedido);
+    // Adicionar um novo documento à coleção "Order" com os dados fornecidos
+    const itemRef = await db.collection('Order').doc(restaurant).collection("orders").add(novoItem);
 
     res.status(200).json({
       status: 200,
-      message: 'Pedido cadastrado com sucesso',
-      payload: { id: pedidoRef.id }
+      message: 'Pedido criado com sucesso',
+      payload: { id: itemRef.id }
     });
   } catch (error) {
     console.error(error);
@@ -323,27 +324,26 @@ app.get('/getRestaurantMenu/:restaurantid', async (req: express.Request, res: ex
 });
 
 
-app.post('/createCategory:restaurantId', async (req: express.Request, res: express.Response) => {
+app.post('/createCategory/:restaurantId', async (req: express.Request, res: express.Response) => {
   try {
     const restaurantId = req.params.restaurantId;
     const { categoryName } = req.body;
 
     // acha o menu do restaurant
-    const restaurantRef = db.collection('Restaurant').doc(restaurantId);
+    const restaurantRef = db.collection('Menu').doc(restaurantId);
 
     // Cria uma referencia da collection
     const subcollectionRef = restaurantRef.collection(categoryName);
 
     // adiciona um documento pq nao da pra criar vazia
-    subcollectionRef.add({ temp: 'data' });
-
-    // agora deleta o documento
+    subcollectionRef.add({ new: true });
+    
+    //deleta o documento criado.
     subcollectionRef.get().then((querySnapshot) => {
       querySnapshot.docs.forEach((doc) => {
         doc.ref.delete();
       });
     });
-
     res.status(200).json({ status: 200,
       message: 'Categoria criada com sucesso!',
       payload: categoryName });
