@@ -58,10 +58,10 @@ app.use(cors())
   });
 
 //FUNÇÃO QUE BUSCA OS DADOS DO RESTAURANTE PELO ID (É O MESMO ID DO AUTHUSER DELE)
-app.get('/getRestaurantById', async (req: express.Request, res: express.Response) => {
+app.get('/getRestaurantById/:id', async (req: express.Request, res: express.Response) => {
   try {
     
-    const restaurantId = req.query.id as string; //Pegamos o ID enviado pela requisição
+    const restaurantId = req.params.id  //Pegamos o ID enviado pela requisição
 
     
     const restaurantDoc = await db.collection('Restaurant').doc(restaurantId).get(); //buscamos este id no banco de dados
@@ -196,6 +196,29 @@ app.post('/addNewOrder/:id', async (req: express.Request, res: express.Response)
     });
   }
 });
+app.put('/editOrder/:id', async (req: express.Request, res: express.Response) => {
+  try {
+    const orderId = req.params.id; // Obter o ID do item a ser editado dos parâmetros da requisição
+    const updatedOrder = req.body; // Dados atualizados do item no corpo da requisição
+    const restaurant = updatedOrder.restaurantId
+
+    // Editar o documento na coleção "Items" pelo ID
+    await await db.collection('Order').doc(restaurant).collection("orders").doc(orderId).update(updatedOrder);
+
+    res.status(200).json({
+      status: 200,
+      message: 'Pedido atualizado com sucesso',
+      payload: updatedOrder
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao atualizar o pedido'
+    });
+  }
+});
+
 //-------------------------------------------MENU OPERATIONS----------------------------------------------
 // FUNÇÃO PARA CRIAR UM NOVO ITEM NO MENU DO RESTAURANTE
 app.post('/addNewItem/:id', async (req: express.Request, res: express.Response) => {
