@@ -198,11 +198,11 @@ app.post('/addNewOrder/:id', async (req: express.Request, res: express.Response)
 });
 app.put('/editOrder/:id', async (req: express.Request, res: express.Response) => {
   try {
-    const orderId = req.params.id; // Obter o ID do item a ser editado dos parâmetros da requisição
-    const updatedOrder = req.body; // Dados atualizados do item no corpo da requisição
+    const orderId = req.params.id; // Obter o ID do pedido a ser editado dos parâmetros da requisição
+    const updatedOrder = req.body; // Dados atualizados do pedido no corpo da requisição
     const restaurant = updatedOrder.restaurantId
 
-    // Editar o documento na coleção "Items" pelo ID
+    // Editar o documento na coleção "Order" pelo ID
     await await db.collection('Order').doc(restaurant).collection("orders").doc(orderId).update(updatedOrder);
 
     res.status(200).json({
@@ -215,6 +215,47 @@ app.put('/editOrder/:id', async (req: express.Request, res: express.Response) =>
     res.status(500).json({
       status: 500,
       error: 'Falha ao atualizar o pedido'
+    });
+  }
+});
+
+
+// FUNÇÃO PARA BUSCAR Pedidos POR "restauranteid" COM OS IDs DOS ITENS
+app.get('/getRestaurantOrders/:restaurantid', async (req: express.Request, res: express.Response) => {
+  try {
+    const restaurantId = req.params.restaurantid; // obtendo o id da url
+
+    // pega referencia do documento
+    const orderSnapshot = await db.collection('Order').doc(restaurantId).collection("orders").get();
+    const orders: any[] = []; // Array para armazenar os restaurantes encontrados
+
+    // Itera sobre os documentos da coleção
+    orderSnapshot.forEach((doc) => {
+      // Obtém os dados do restaurante
+      const orderData = doc.data();
+      orders.push(orderData); // Adiciona o restaurante ao array
+    });
+    
+
+    if (orders.length < 1) {
+      res.status(404).json({
+        status: 404,
+        error: 'Pedido ou restaurante não encontrado!'
+      });
+      return;
+    }
+
+
+    res.status(200).json({
+      status: 200,
+      message: 'Pedido encontrados com sucesso',
+      payload: orders
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao buscar pedidos'
     });
   }
 });
