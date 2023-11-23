@@ -13,7 +13,7 @@ const app = express();
 
 app.use(bodyParser.json());
 app.use(cors())
-//https://southamerica-east1-pick-pega.cloudfunctions.net/api >> HTTP PARA FAZER REQUISIÇÕES (SEGUIDO DA FUNÇÃO QUE QUER CHAMAR EX: /addNewRestaurante)
+//  >> HTTP PARA FAZER REQUISIÇÕES (SEGUIDO DA FUNÇÃO QUE QUER CHAMAR EX: /addNewRestaurante)
 //quando algum dado é resgatado como "parametro", 
 //siguinifica que este deve ser inserido na propria url, 
 //por exemplo: southamerica-east1-pick-pega.cloudfunctions.net/api/deleteRestaurante/idaserdeletado
@@ -220,20 +220,20 @@ app.put('/editOrder/:id', async (req: express.Request, res: express.Response) =>
 });
 
 
-// FUNÇÃO PARA BUSCAR Pedidos POR "restauranteid" COM OS IDs DOS ITENS
+// FUNÇÃO PARA BUSCAR PEDIDOS POR "restauranteid"
 app.get('/getRestaurantOrders/:restaurantid', async (req: express.Request, res: express.Response) => {
   try {
     const restaurantId = req.params.restaurantid; // obtendo o id da url
 
     // pega referencia do documento
     const orderSnapshot = await db.collection('Order').doc(restaurantId).collection("orders").get();
-    const orders: any[] = []; // Array para armazenar os restaurantes encontrados
+    const orders: any[] = []; // Array para armazenar os pedidos encontrados
 
     // Itera sobre os documentos da coleção
     orderSnapshot.forEach((doc) => {
-      // Obtém os dados do restaurante
-      const orderData = doc.data();
-      orders.push(orderData); // Adiciona o restaurante ao array
+      // Obtém os dados do pedido
+      const orderWithId = { ...doc.data(), orderId: doc.id };
+      orders.push(orderWithId); // Adiciona o pedido ao array
     });
     
 
@@ -249,6 +249,56 @@ app.get('/getRestaurantOrders/:restaurantid', async (req: express.Request, res: 
     res.status(200).json({
       status: 200,
       message: 'Pedido encontrados com sucesso',
+      payload: orders
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao buscar pedidos'
+    });
+  }
+});
+
+// FUNÇÃO PARA BUSCAR PEDIDOS DO DIA POR "restauranteid"
+app.get('/getRestaurantOrdersByDay/:restaurantid', async (req: express.Request, res: express.Response) => {
+  try {
+    const restaurantId = req.params.restaurantid; // id do restaurante
+    const today = new Date(); // pega o dia de hoje
+
+    // referencia o documento
+    const orderSnapshot = await db.collection('Order').doc(restaurantId).collection("orders").get();
+    const orders: any[] = []; // cria vetor para armazenar os pedidos
+
+  
+    orderSnapshot.forEach((doc) => {
+    
+      const orderDateParts = doc.data().date.split('/');
+      const orderDate = new Date(`${orderDateParts[2]}-${orderDateParts[1]}-${orderDateParts[0]}`); // instancia data com a data da ordem
+      
+      // checa se o dia é igual
+      if (
+        orderDate.getDate() === today.getDate() &&
+        orderDate.getMonth() === today.getMonth() &&
+        orderDate.getFullYear() === today.getFullYear()
+      ) {
+        // adiciona o documento e o seu id
+        const orderWithId = { ...doc.data(), orderId: doc.id };
+        orders.push(orderWithId); // Adding the order to the array
+      }
+    });
+
+    if (orders.length < 1) {
+      res.status(404).json({
+        status: 404,
+        error: 'Pedido ou restaurante não encontrado!'
+      });
+      return;
+    }
+
+    res.status(200).json({
+      status: 200,
+      message: 'Pedidos encontrados com sucesso',
       payload: orders
     });
   } catch (error) {
