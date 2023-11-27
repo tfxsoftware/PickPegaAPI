@@ -172,6 +172,42 @@ app.get('/getAllRestaurants', async (req: express.Request, res: express.Response
     });
   }
 });
+//FUNCAO QUE BUSCA RESTAURANTE POR NOME
+app.get('/getRestaurantByName/:name', async (req: express.Request, res: express.Response) => {
+  try {
+    const restaurantName = req.params.name; // pega o nome da url
+
+    // faz um query no db
+    const restaurantsSnapshot = await db.collection('Restaurant').where('name', '==', restaurantName).get();
+
+    const restaurants: any[] = []; // cria um array com os restaurantes
+
+    restaurantsSnapshot.forEach((doc) => {
+      const restaurantData = doc.data();
+      const restaurantWithId = { ...restaurantData, restaurantId: doc.id };
+      restaurants.push(restaurantWithId);
+    });
+
+    if (restaurants.length < 1) {
+      return res.status(404).json({
+        status: 404,
+        error: 'Restaurante não encontrado'
+      });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      message: 'Restaurante(s) encontrado(s) com sucesso',
+      payload: restaurants
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      status: 500,
+      error: 'Ocorreu um erro no servidor! Tente novamente mais tarde!'
+    });
+  }
+});
 
 //------------------------------------ORDER OPERATIONS--------------------------------------
 // FUNÇÃO PARA CRIAR UM NOVO DOCUMENTO NA COLEÇÃO "order" 
@@ -300,6 +336,50 @@ app.get('/getRestaurantOrdersByDay/:restaurantid', async (req: express.Request, 
       status: 200,
       message: 'Pedidos encontrados com sucesso',
       payload: orders
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      status: 500,
+      error: 'Falha ao buscar pedidos'
+    });
+  }
+});
+
+// FUNÇÃO PARA BUSCAR OS ITEMS DOS PEDIDOS (RETORNA ARRAY)
+app.get('/getRestaurantOrdersItems/:restaurantid', async (req: express.Request, res: express.Response) => {
+  try {
+    const restaurantId = req.params.restaurantid; // obtendo o id da url
+
+    // pega referencia do documento
+    const orderSnapshot = await db.collection('Order').doc(restaurantId).collection("orders").get();
+    const items: any[] = []; // Array para armazenar os pedidos encontrados
+
+    // Itera sobre os documentos da coleção
+    orderSnapshot.forEach((doc) => {
+      // Obtém os dados do pedido
+      const itemList = doc.data().products;
+      for (var i = 0;i < itemList.length;i++){
+        var itemName = itemList[0].name
+        items.push(itemName); // Adiciona o nome do item ao array
+      }
+      
+    });
+    
+
+    if (items.length < 1) {
+      res.status(404).json({
+        status: 404,
+        error: 'Item ou restaurante não encontrado!'
+      });
+      return;
+    }
+
+
+    res.status(200).json({
+      status: 200,
+      message: 'Pedido encontrados com sucesso',
+      payload: items
     });
   } catch (error) {
     console.error(error);
@@ -467,6 +547,46 @@ app.post('/createCategory/:restaurantId', async (req: express.Request, res: expr
           error: 'Erro no servidor!' });
   }
 });
+//BUSCA ITEM POR NOME
+app.get('/getItemByName/:restaurantId/:categoryName/:itemName', async (req: express.Request, res: express.Response) => {
+  try {
+    const itemName = req.params.itemName;
+    const restaurantId = req.params.restaurantId;
+    const categoryName = req.params.categoryName;
+
+    const categoryRef = await db.collection('Menu').doc(restaurantId).collection(categoryName);
+    // procura item por nome
+    const itemsSnapshot = await categoryRef.where('name', '==', itemName).get();
+
+    const items: any[] = []; // Array pra guardar os items
+
+    itemsSnapshot.forEach((doc) => {
+      const itemData = doc.data();
+      const itemWithId = { ...itemData, itemId: doc.id };
+      items.push(itemWithId);
+    });
+
+    if (items.length < 1) {
+      return res.status(404).json({
+        status: 404,
+        error: 'Item não encontrado'
+      });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      message: 'Item(s) encontrado(s) com sucesso',
+      payload: items
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      status: 500,
+      error: 'Ocorreu um erro no servidor! Tente novamente mais tarde!'
+    });
+  }
+});
+
 
 
 exports.api = functions.region('southamerica-east1').https.onRequest(app);
